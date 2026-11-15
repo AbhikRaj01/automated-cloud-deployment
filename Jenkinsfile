@@ -4,6 +4,7 @@ pipeline {
 
     environment {
         KUBECONFIG = 'C:\\ProgramData\\Jenkins\\.kube-config'
+        MINIKUBE_HOME = 'C:\\ProgramData\\Jenkins'
         PATH = "C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Program Files\\Kubernetes\\Minikube;${env.PATH}"
         IMAGE_NAME = 'cloud-dashboard'
         IMAGE_TAG = '1.0'
@@ -17,6 +18,7 @@ pipeline {
                 bat 'docker info --format "{{.ServerVersion}}"'
                 bat 'kubectl config current-context'
                 bat 'kubectl get nodes'
+                bat 'minikube status -p minikube'
             }
         }
 
@@ -34,7 +36,7 @@ pipeline {
 
         stage('Load Image into Minikube') {
             steps {
-                bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG%'
+                bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG% -p minikube'
             }
         }
 
