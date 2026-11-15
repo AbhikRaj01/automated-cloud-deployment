@@ -2,22 +2,39 @@
 pipeline {
     agent any
 
+    environment {
+        KUBECONFIG = 'C:\\ProgramData\\Jenkins\\.kube-config'
+        PATH = "C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Program Files\\Kubernetes\\Minikube;${env.PATH}"
+        IMAGE_NAME = 'cloud-dashboard'
+        IMAGE_TAG = '1.0'
+    }
+
     stages {
+        stage('Preflight Check') {
+            steps {
+                echo 'Checking Jenkins environment...'
+                bat 'whoami'
+                bat 'docker info --format "{{.ServerVersion}}"'
+                bat 'kubectl config current-context'
+                bat 'kubectl get nodes'
+            }
+        }
+
         stage('Checkout') {
             steps {
-                echo 'Code checked out from GitHub'
+                echo 'Source code checked out from GitHub'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                bat 'docker build -t cloud-dashboard:1.0 ./application'
+                bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% ./application'
             }
         }
 
         stage('Load Image into Minikube') {
             steps {
-                bat 'minikube image load cloud-dashboard:1.0'
+                bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG%'
             }
         }
 
