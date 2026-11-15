@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-dashboard
+  labels:
+    app: cloud-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloud-dashboard
+  template:
+    metadata:
+      labels:
+        app: cloud-dashboard
+    spec:
+      containers:
+        - name: cloud-dashboard
+          image: cloud-dashboard:1.0
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-dashboard
+spec:
+  type: NodePort
+  selector:
+    app: cloud-dashboard
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP

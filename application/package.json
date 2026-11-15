@@ -1,0 +1,13 @@
+{
+  "name": "cloud-deployment-dashboard",
+  "version": "1.0.0",
+  "description": "Automated cloud deployment and monitoring dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.1161.0",
+    "express": "4.21.2"
+  }
+}

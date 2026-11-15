@@ -1,0 +1,7 @@
+{
+  "Dimensions": {
+    "Key": "SERVICE",
+    "Values": ["AmazonEC2"],
+    "MatchOptions": ["EQUALS"]
+  }
+}

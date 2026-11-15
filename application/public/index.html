@@ -1,0 +1,307 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Deployment Dashboard</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b1120;
+    color: #e5e7eb;
+}
+
+header {
+    padding: 25px 7%;
+    background: #111b30;
+    border-bottom: 1px solid #26344d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    margin: 0;
+    font-size: 23px;
+}
+
+header p {
+    color: #94a3b8;
+    margin-bottom: 0;
+}
+
+.container {
+    padding: 35px 7%;
+}
+
+.status {
+    display: inline-block;
+    padding: 9px 15px;
+    background: #123b31;
+    color: #4ade80;
+    border-radius: 20px;
+    font-size: 13px;
+}
+
+h2 {
+    margin-top: 28px;
+}
+
+.subtitle {
+    color: #94a3b8;
+    margin-bottom: 30px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: #151f32;
+    border: 1px solid #293750;
+    padding: 24px;
+    border-radius: 12px;
+}
+
+.card p {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.value {
+    font-size: 27px;
+    font-weight: bold;
+    margin-top: 12px;
+    overflow-wrap: anywhere;
+}
+
+.green {
+    color: #4ade80;
+}
+
+.details {
+    margin-top: 28px;
+}
+
+.details p {
+    color: #cbd5e1;
+}
+
+button {
+    padding: 10px 15px;
+    border: 0;
+    border-radius: 6px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+footer {
+    padding: 25px 7%;
+    color: #64748b;
+    border-top: 1px solid #26344d;
+    margin-top: 50px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div>
+        <h1>Cloud Deployment Dashboard</h1>
+        <p>Automated Infrastructure & Monitoring</p>
+    </div>
+
+    <span class="status" id="connection">Connecting...</span>
+</header>
+
+<main class="container">
+
+    <!-- Infrastructure Overview -->
+    <h2>Infrastructure Overview</h2>
+    <p class="subtitle">Live application and server information</p>
+
+    <section class="grid">
+
+        <div class="card">
+            <p>Application Status</p>
+            <div class="value green" id="appStatus">Checking...</div>
+        </div>
+
+        <div class="card">
+            <p>Server Hostname</p>
+            <div class="value" id="hostname">--</div>
+        </div>
+
+        <div class="card">
+            <p>Server Uptime</p>
+            <div class="value" id="uptime">--</div>
+        </div>
+
+        <div class="card">
+            <p>Memory Usage</p>
+            <div class="value" id="memory">--</div>
+        </div>
+
+    </section>
+
+    <!-- AWS CloudWatch Monitoring -->
+    <h2>AWS CloudWatch Monitoring</h2>
+    <p class="subtitle">Live infrastructure metrics from Amazon CloudWatch</p>
+
+    <section class="grid">
+
+        <div class="card">
+            <p>EC2 CPU Utilization</p>
+            <div class="value" id="awsCpu">Loading...</div>
+        </div>
+
+        <div class="card">
+            <p>CloudWatch Alarm</p>
+            <div class="value green" id="awsAlarm">Loading...</div>
+        </div>
+
+        <div class="card">
+            <p>Monitored Instance</p>
+            <div class="value" id="awsInstance" style="font-size:16px">--</div>
+        </div>
+
+        <div class="card">
+            <p>CPU Alarm Threshold</p>
+            <div class="value" id="awsThreshold">70%</div>
+        </div>
+
+    </section>
+
+    <!-- Deployment Information -->
+    <section class="card details">
+
+        <h3>Deployment Information</h3>
+
+        <p>Platform: <strong id="platform">--</strong></p>
+        <p>Deployment: <strong>Ansible Managed</strong></p>
+        <p>Infrastructure: <strong>AWS EC2</strong></p>
+        <p>Region: <strong>us-east-1</strong></p>
+        <p>Last Updated: <strong id="updated">--</strong></p>
+
+        <button onclick="refreshDashboard()">Refresh Status</button>
+
+    </section>
+
+</main>
+
+<footer>
+    Automated Cloud-Native Application Deployment with Monitoring
+</footer>
+
+<script>
+
+// Application and server information
+async function loadStatus() {
+
+    try {
+        const response = await fetch("/api/status");
+
+        if (!response.ok) {
+            throw new Error("API unavailable");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("connection").textContent = "Connected";
+        document.getElementById("appStatus").textContent = "Healthy";
+
+        document.getElementById("hostname").textContent = data.hostname;
+        document.getElementById("platform").textContent = data.platform;
+
+        document.getElementById("uptime").textContent =
+            Math.floor(data.uptimeSeconds / 3600) + " hrs";
+
+        document.getElementById("memory").textContent =
+            data.memory.usedMB + " / " + data.memory.totalMB + " MB";
+
+        document.getElementById("updated").textContent =
+            new Date(data.timestamp).toLocaleTimeString();
+
+    } catch (error) {
+
+        document.getElementById("connection").textContent = "Disconnected";
+        document.getElementById("appStatus").textContent = "Unavailable";
+
+        console.error("Application monitoring error:", error);
+    }
+}
+
+
+// AWS CloudWatch infrastructure monitoring
+async function loadAwsMonitoring() {
+
+    try {
+        const response = await fetch("/api/aws-monitoring");
+
+        if (!response.ok) {
+            throw new Error("CloudWatch unavailable");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("awsCpu").textContent =
+            data.cpuUtilization === null
+                ? "No data"
+                : data.cpuUtilization + "%";
+
+        const alarmElement = document.getElementById("awsAlarm");
+
+        alarmElement.textContent = data.alarmState;
+
+        alarmElement.className =
+            "value " + (data.alarmState === "OK" ? "green" : "");
+
+        document.getElementById("awsInstance").textContent =
+            data.instanceId || "--";
+
+        document.getElementById("awsThreshold").textContent =
+            data.threshold + "%";
+
+    } catch (error) {
+
+        document.getElementById("awsCpu").textContent = "Unavailable";
+        document.getElementById("awsAlarm").textContent = "Unavailable";
+
+        console.error("AWS monitoring error:", error);
+    }
+}
+
+
+// Refresh both monitoring sections
+function refreshDashboard() {
+    loadStatus();
+    loadAwsMonitoring();
+}
+
+
+// Initial dashboard load
+refreshDashboard();
+
+// Automatic refresh
+setInterval(loadStatus, 10000);
+setInterval(loadAwsMonitoring, 60000);
+
+</script>
+
+</body>
+</html>

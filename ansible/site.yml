@@ -1,0 +1,148 @@
+
+---
+- name: Deploy Cloud Dashboard on AWS EC2
+  hosts: application
+  become: true
+  gather_facts: true
+
+  vars:
+    app_directory: /opt/cloud-deployment-dashboard
+    app_user: ubuntu
+
+  tasks:
+    - name: Update APT package cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - nodejs
+          - npm
+          - nginx
+        state: present
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ app_directory }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Copy application package files
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../application/{{ item }}"
+        dest: "{{ app_directory }}/{{ item }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0644"
+      loop:
+        - package.json
+        - package-lock.json
+        - server.js
+
+    - name: Copy application public directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../application/public/"
+        dest: "{{ app_directory }}/public/"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0644"
+
+    - name: Install production Node.js dependencies
+      ansible.builtin.command:
+        cmd: npm ci --omit=dev
+        chdir: "{{ app_directory }}"
+
+    - name: Create systemd service for dashboard
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/cloud-dashboard.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Cloud Deployment Dashboard
+          After=network.target
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          WorkingDirectory={{ app_directory }}
+          ExecStart=/usr/bin/node {{ app_directory }}/server.js
+          Restart=always
+          RestartSec=5
+          Environment=NODE_ENV=production
+          Environment=EC2_INSTANCE_ID=i-0c3b438689fef4c4c
+
+          [Install]
+          WantedBy=multi-user.target
+      notify:
+        - Reload systemd
+        - Restart dashboard
+
+    - name: Configure Nginx reverse proxy
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/cloud-dashboard
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name _;
+
+              location / {
+                  proxy_pass http://127.0.0.1:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+      notify: Restart Nginx
+
+    - name: Enable dashboard Nginx configuration
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/cloud-dashboard
+        dest: /etc/nginx/sites-enabled/cloud-dashboard
+        state: link
+      notify: Restart Nginx
+
+    - name: Remove default Nginx website
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Restart Nginx
+
+    - name: Validate Nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Ensure dashboard service is enabled and running
+      ansible.builtin.systemd:
+        name: cloud-dashboard
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Ensure Nginx is enabled and running
+      ansible.builtin.service:
+        name: nginx
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart dashboard
+      ansible.builtin.systemd:
+        name: cloud-dashboard
+        state: restarted
+
+    - name: Restart Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
